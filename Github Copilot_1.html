@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Defense - Github Copilot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 1200px;
+            background: #1a1a2e;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ui-top {
+            background: linear-gradient(90deg, #16213e, #0f3460);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #e94560;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .ui-info {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #00d4ff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .info-label {
+            color: #aaa;
+            font-size: 12px;
+            display: block;
+        }
+
+        .ui-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #e94560;
+            color: white;
+        }
+
+        button:hover {
+            background: #ff6b7a;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(233, 69, 96, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            min-height: 600px;
+            gap: 0;
+        }
+
+        .game-board {
+            flex: 1;
+            background: linear-gradient(180deg, #2d5016 0%, #1a3a0a 100%);
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            border-right: 2px solid #00d4ff;
+        }
+
+        .cell {
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .cell:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .cell.occupied {
+            background: rgba(233, 69, 96, 0.1);
+        }
+
+        .ui-panel {
+            width: 200px;
+            background: linear-gradient(180deg, #16213e, #0f3460);
+            padding: 15px;
+            overflow-y: auto;
+            border-left: 2px solid #00d4ff;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .defender-card {
+            background: linear-gradient(135deg, #1a472a, #0d2818);
+            border: 2px solid #00d4ff;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            color: white;
+            font-size: 12px;
+            position: relative;
+        }
+
+        .defender-card:hover:not(.disabled) {
+            border-color: #ff6b7a;
+            background: linear-gradient(135deg, #2a5c3a, #1a3d28);
+            transform: scale(1.05);
+        }
+
+        .defender-card.selected {
+            background: #00d4ff;
+            color: #000;
+            border-color: #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+        }
+
+        .defender-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .defender-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .defender-name {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+
+        .defender-cost {
+            font-size: 10px;
+            color: #ffd700;
+            margin-bottom: 4px;
+        }
+
+        .defender-cooldown {
+            font-size: 9px;
+            color: #ff6b7a;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .defender-cooldown.active {
+            display: block;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .overlay.active {
+            display: flex;
+        }
+
+        .overlay-content {
+            background: #1a1a2e;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            border: 3px solid #00d4ff;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        .overlay-content h1 {
+            font-size: 48px;
+            color: #00d4ff;
+            margin-bottom: 20px;
+        }
+
+        .overlay-content p {
+            color: #aaa;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .overlay-content.victory h1 {
+            color: #00ff00;
+        }
+
+        .overlay-content.defeat h1 {
+            color: #ff6b7a;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .start-screen {
+            display: none;
+        }
+
+        .start-screen.active {
+            display: flex;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .game-board {
+                min-height: 400px;
+                order: 2;
+            }
+
+            .ui-panel {
+                width: 100%;
+                border-left: none;
+                border-top: 2px solid #00d4ff;
+                padding: 10px;
+                max-height: 150px;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                gap: 8px;
+                overflow-x: auto;
+            }
+
+            .defender-card {
+                padding: 8px;
+            }
+
+            .defender-icon {
+                font-size: 24px;
+                margin-bottom: 4px;
+            }
+
+            .defender-name {
+                font-size: 10px;
+            }
+
+            .ui-top {
+                padding: 10px;
+                font-size: 12px;
+            }
+
+            .info-item {
+                font-size: 14px;
+                gap: 6px;
+            }
+
+            button {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+
+        .paused-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .paused-overlay.active {
+            display: flex;
+        }
+
+        .paused-text {
+            color: #00d4ff;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+        }
+
+        .wave-alert {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 107, 122, 0.9);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            display: none;
+            z-index: 200;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        .wave-alert.active {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateX(-50%) translateY(-100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="ui-top">
+            <div class="ui-info">
+                <div class="info-item">
+                    <span class="info-label">Recursos</span>
+                    <span id="resources">100</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Oleada</span>
+                    <span id="wave">1/10</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Enemigos</span>
+                    <span id="enemies-count">0/5</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Vidas</span>
+                    <span id="lives">20</span>
+                </div>
+            </div>
+            <div class="ui-buttons">
+                <button id="start-btn">Comenzar</button>
+                <button id="pause-btn" disabled>Pausar</button>
+                <button id="restart-btn">Reiniciar</button>
+                <button id="sound-btn">🔊 Sonido</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="game-board" id="game-board">
+                <canvas id="game-canvas"></canvas>
+                <div class="paused-overlay" id="paused-overlay">
+                    <div class="paused-text">PAUSADO</div>
+                </div>
+                <div class="wave-alert" id="wave-alert"></div>
+            </div>
+
+            <div class="ui-panel" id="ui-panel"></div>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div class="overlay-content" id="overlay-content">
+            <h1>Game Over</h1>
+            <p>La partida ha terminado</p>
+            <div class="modal-buttons">
+                <button onclick="game.restart()">Reiniciar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            BOARD_COLS: 9,
+            BOARD_ROWS: 5,
+            CELL_SIZE: 80,
+            INITIAL_RESOURCES: 100,
+            RESOURCE_GENERATION: 25,
+            RESOURCE_INTERVAL: 8000,
+            MAX_LIVES: 20,
+            TOTAL_WAVES: 10,
+            DANGEROUS_WAVE: 7,
+            defenders: {
+                sunflower: {
+                    name: 'Girasol',
+                    icon: '🌻',
+                    cost: 50,
+                    cooldown: 0,
+                    type: 'resource',
+                    description: 'Genera recursos'
+                },
+                peashooter: {
+                    name: 'Tirador',
+                    icon: '🌱',
+                    cost: 100,
+                    cooldown: 0,
+                    type: 'attacker',
+                    range: 3,
+                    damage: 20,
+                    fireRate: 1.5,
+                    description: 'Ataca a distancia'
+                },
+                wallnut: {
+                    name: 'Barrera',
+                    icon: '🧱',
+                    cost: 150,
+                    cooldown: 0,
+                    type: 'tank',
+                    health: 300,
+                    description: 'Muy resistente'
+                },
+                repeater: {
+                    name: 'Rifle',
+                    icon: '🔫',
+                    cost: 200,
+                    cooldown: 0,
+                    type: 'aoe',
+                    range: 4,
+                    damage: 15,
+                    fireRate: 0.8,
+                    description: 'Área múltiple'
+                },
+                freezer: {
+                    name: 'Hielo',
+                    icon: '❄️',
+                    cost: 175,
+                    cooldown: 0,
+                    type: 'special',
+                    range: 2.5,
+                    slowFactor: 0.5,
+                    fireRate: 2,
+                    description: 'Ralentiza enemigos'
+                }
+            },
+            enemies: {
+                zombie: {
+                    name: 'Zombi Normal',
+                    speed: 40,
+                    health: 100,
+                    damage: 1,
+                    attackRate: 1
+                },
+                fastZombie: {
+                    name: 'Zombi Rápido',
+                    speed: 80,
+                    health: 50,
+                    damage: 1,
+                    attackRate: 1
+                },
+                toughZombie: {
+                    name: 'Zombi Duro',
+                    speed: 25,
+                    health: 250,
+                    damage: 2,
+                    attackRate: 0.8
+                }
+            }
+        };
+
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('game-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.board = [];
+                this.defenders = [];
+                this.enemies = [];
+                this.projectiles = [];
+                this.resources = CONFIG.INITIAL_RESOURCES;
+                this.lives = CONFIG.MAX_LIVES;
+                this.wave = 0;
+                this.waveEnemies = [];
+                this.isPaused = false;
+                this.isGameOver = false;
+                this.gameState = 'start';
+                this.selectedDefender = null;
+                this.resourceTimer = 0;
+                this.soundEnabled = true;
+                this.lastTime = Date.now();
+                this.defenderCooldowns = {};
+                this.waveProgress = 0;
+                this.totalWaveEnemies = 0;
+                this.particles = [];
+
+                this.initBoard();
+                this.setupEventListeners();
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                this.updateUI();
+                this.gameLoop();
+            }
+
+            initBoard() {
+                this.board = Array(CONFIG.BOARD_ROWS).fill(null).map(() => Array(CONFIG.BOARD_COLS).fill(null));
+            }
+
+            resizeCanvas() {
+                const boardElement = document.getElementById('game-board');
+                this.canvas.width = boardElement.clientWidth;
+                this.canvas.height = boardElement.clientHeight;
+                this.cellSize = Math.min(
+                    this.canvas.width / CONFIG.BOARD_COLS,
+                    this.canvas.height / CONFIG.BOARD_ROWS
+                );
+            }
+
+            setupEventListeners() {
+                document.getElementById('game-board').addEventListener('click', (e) => this.handleBoardClick(e));
+                document.getElementById('game-board').addEventListener('touchend', (e) => this.handleBoardClick(e));
+                document.getElementById('start-btn').addEventListener('click', () => this.start());
+                document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
+                document.getElementById('restart-btn').addEventListener('click', () => this.restart());
+                document.getElementById('sound-btn').addEventListener('click', () => this.toggleSound());
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') this.deselectDefender();
+                });
+            }
+
+            start() {
+                if (this.gameState === 'start') {
+                    this.gameState = 'playing';
+                    this.wave = 1;
+                    this.waveProgress = 0;
+                    document.getElementById('start-btn').disabled = true;
+                    document.getElementById('pause-btn').disabled = false;
+                    this.spawnWave();
+                    this.startResourceGeneration();
+                    this.updateUI();
+                }
+            }
+
+            spawnWave() {
+                const waveNumber = this.wave;
+                const enemyCount = 3 + Math.floor(waveNumber / 2);
+                const enemyTypes = Object.keys(CONFIG.enemies);
+                
+                this.showWaveAlert();
+                if (waveNumber === CONFIG.DANGEROUS_WAVE) {
+                    this.showDangerousWaveAlert();
+                }
+
+                this.waveEnemies = [];
+                this.totalWaveEnemies = enemyCount;
+                this.waveProgress = 0;
+
+                let spawnIndex = 0;
+                const spawnInterval = setInterval(() => {
+                    if (this.gameState !== 'playing' || spawnIndex >= enemyCount) {
+                        clearInterval(spawnInterval);
+                        return;
+                    }
+
+                    const typeIndex = Math.min(spawnIndex, enemyTypes.length - 1);
+                    const enemyType = enemyTypes[typeIndex % enemyTypes.length];
+                    const enemy = new Enemy(
+                        this.canvas.width,
+                        Math.random() * (this.canvas.height - this.cellSize),
+                        enemyType,
+                        this
+                    );
+                    this.enemies.push(enemy);
+                    this.waveEnemies.push(enemy);
+                    spawnIndex++;
+                }, 1500);
+            }
+
+            showWaveAlert() {
+                const alert = document.getElementById('wave-alert');
+                alert.textContent = `¡Oleada ${this.wave} comenzando!`;
+                alert.classList.add('active');
+                setTimeout(() => alert.classList.remove('active'), 2000);
+            }
+
+            showDangerousWaveAlert() {
+                setTimeout(() => {
+                    const alert = document.getElementById('wave-alert');
+                    alert.textContent = '⚠️ ¡Oleada peligrosa!';
+                    alert.style.background = 'rgba(255, 30, 30, 0.95)';
+                    alert.classList.add('active');
+                    setTimeout(() => {
+                        alert.classList.remove('active');
+                        alert.style.background = 'rgba(255, 107, 122, 0.9)';
+                    }, 3000);
+                }, 1000);
+            }
+
+            startResourceGeneration() {
+                this.resourceTimer = setInterval(() => {
+                    if (this.gameState === 'playing' && !this.isPaused) {
+                        this.resources += CONFIG.RESOURCE_GENERATION;
+                        this.updateUI();
+                    }
+                }, CONFIG.RESOURCE_INTERVAL);
+            }
+
+            handleBoardClick(e) {
+                if (this.gameState !== 'playing' || this.isPaused || !this.selectedDefender) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.touches?.[0]?.clientX || e.clientX) - rect.left;
+                const y = (e.touches?.[0]?.clientY || e.clientY) - rect.top;
+
+                const col = Math.floor(x / this.cellSize);
+                const row = Math.floor(y / this.cellSize);
+
+                if (col >= 0 && col < CONFIG.BOARD_COLS && row >= 0 && row < CONFIG.BOARD_ROWS) {
+                    this.placeDefender(row, col);
+                }
+            }
+
+            placeDefender(row, col) {
+                if (this.board[row][col] !== null) {
+                    this.playSound(150, 0.1);
+                    return;
+                }
+
+                const defenderType = this.selectedDefender;
+                const config = CONFIG.defenders[defenderType];
+
+                if (this.resources < config.cost) {
+                    this.playSound(100, 0.1);
+                    return;
+                }
+
+                const defender = new Defender(row, col, defenderType, this);
+                this.defenders.push(defender);
+                this.board[row][col] = defender;
+                this.resources -= config.cost;
+                this.playSound(400, 0.2);
+                this.updateUI();
+            }
+
+            selectDefender(type) {
+                const config = CONFIG.defenders[type];
+                if (this.resources < config.cost) return;
+                this.selectedDefender = this.selectedDefender === type ? null : type;
+                this.updateUI();
+            }
+
+            deselectDefender() {
+                this.selectedDefender = null;
+                this.updateUI();
+            }
+
+            togglePause() {
+                if (this.gameState !== 'playing') return;
+                this.isPaused = !this.isPaused;
+                document.getElementById('paused-overlay').classList.toggle('active', this.isPaused);
+                document.getElementById('pause-btn').textContent = this.isPaused ? 'Continuar' : 'Pausar';
+            }
+
+            toggleSound() {
+                this.soundEnabled = !this.soundEnabled;
+                document.getElementById('sound-btn').textContent = this.soundEnabled ? '🔊 Sonido' : '🔇 Silencio';
+            }
+
+            playSound(frequency, duration) {
+                if (!this.soundEnabled) return;
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    oscillator.frequency.value = frequency;
+                    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + duration);
+                } catch(e) {}
+            }
+
+            updateUI() {
+                document.getElementById('resources').textContent = this.resources;
+                document.getElementById('wave').textContent = `${this.wave}/${CONFIG.TOTAL_WAVES}`;
+                document.getElementById('enemies-count').textContent = `${this.waveProgress}/${this.totalWaveEnemies}`;
+                document.getElementById('lives').textContent = this.lives;
+
+                const panel = document.getElementById('ui-panel');
+                panel.innerHTML = '';
+
+                Object.entries(CONFIG.defenders).forEach(([key, config]) => {
+                    const card = document.createElement('div');
+                    card.className = 'defender-card';
+                    if (this.resources < config.cost) card.classList.add('disabled');
+                    if (this.selectedDefender === key) card.classList.add('selected');
+
+                    const cooldownInfo = this.defenderCooldowns[key];
+                    if (cooldownInfo && cooldownInfo.remaining > 0) {
+                        card.classList.add('disabled');
+                    }
+
+                    card.innerHTML = `
+                        <div class="defender-icon">${config.icon}</div>
+                        <div class="defender-name">${config.name}</div>
+                        <div class="defender-cost">💰 ${config.cost}</div>
+                        ${cooldownInfo && cooldownInfo.remaining > 0 ? `<div class="defender-cooldown active">${Math.ceil(cooldownInfo.remaining / 1000)}s</div>` : ''}
+                    `;
+
+                    if (this.resources >= config.cost && (!cooldownInfo || cooldownInfo.remaining <= 0)) {
+                        card.addEventListener('click', () => this.selectDefender(key));
+                    }
+
+                    panel.appendChild(card);
+                });
+            }
+
+            restart() {
+                clearInterval(this.resourceTimer);
+                this.defenders = [];
+                this.enemies = [];
+                this.projectiles = [];
+                this.particles = [];
+                this.board = [];
+                this.initBoard();
+                this.resources = CONFIG.INITIAL_RESOURCES;
+                this.lives = CONFIG.MAX_LIVES;
+                this.wave = 0;
+                this.isPaused = false;
+                this.isGameOver = false;
+                this.gameState = 'start';
+                this.selectedDefender = null;
+                this.defenderCooldowns = {};
+                document.getElementById('paused-overlay').classList.remove('active');
+                document.getElementById('overlay').classList.remove('active');
+                document.getElementById('pause-btn').disabled = true;
+                document.getElementById('pause-btn').textContent = 'Pausar';
+                document.getElementById('start-btn').disabled = false;
+                this.updateUI();
+            }
+
+            update(deltaTime) {
+                if (this.gameState !== 'playing' || this.isPaused) return;
+
+                this.resourceTimer;
+                this.enemies.forEach(enemy => enemy.update(deltaTime, this));
+                this.defenders.forEach(defender => defender.update(deltaTime, this));
+                this.projectiles.forEach(proj => proj.update(deltaTime));
+                this.particles.forEach(p => p.update(deltaTime));
+
+                this.projectiles = this.projectiles.filter(p => p.isActive);
+                this.enemies = this.enemies.filter(e => e.isActive);
+                this.particles = this.particles.filter(p => p.isActive);
+
+                this.waveProgress = this.totalWaveEnemies - this.enemies.filter(e => this.waveEnemies.includes(e)).length;
+
+                if (this.enemies.length === 0 && this.wave > 0 && this.waveProgress === this.totalWaveEnemies) {
+                    if (this.wave < CONFIG.TOTAL_WAVES) {
+                        this.wave++;
+                        this.spawnWave();
+                    } else {
+                        this.endGame(true);
+                    }
+                }
+
+                if (this.lives <= 0) {
+                    this.endGame(false);
+                }
+
+                Object.keys(this.defenderCooldowns).forEach(key => {
+                    this.defenderCooldowns[key].remaining -= deltaTime;
+                    if (this.defenderCooldowns[key].remaining <= 0) {
+                        delete this.defenderCooldowns[key];
+                    }
+                });
+
+                this.updateUI();
+            }
+
+            endGame(victory) {
+                this.gameState = 'end';
+                this.isGameOver = true;
+                clearInterval(this.resourceTimer);
+                const overlay = document.getElementById('overlay');
+                const content = document.getElementById('overlay-content');
+                if (victory) {
+                    content.classList.add('victory');
+                    content.classList.remove('defeat');
+                    content.innerHTML = '<h1>¡VICTORIA!</h1><p>¡Sobreviviste todas las oleadas!</p><div class="modal-buttons"><button onclick="game.restart()">Reiniciar</button></div>';
+                    this.playSound(800, 0.5);
+                } else {
+                    content.classList.add('defeat');
+                    content.classList.remove('victory');
+                    content.innerHTML = '<h1>Derrota</h1><p>Los enemigos llegaron al final...</p><div class="modal-buttons"><button onclick="game.restart()">Reiniciar</button></div>';
+                    this.playSound(200, 0.5);
+                }
+                overlay.classList.add('active');
+                document.getElementById('pause-btn').disabled = true;
+            }
+
+            draw() {
+                this.ctx.fillStyle = '#2d5016';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.ctx.strokeStyle = 'rgba(0, 212, 255, 0.2)';
+                this.ctx.lineWidth = 1;
+                for (let row = 0; row <= CONFIG.BOARD_ROWS; row++) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, row * this.cellSize);
+                    this.ctx.lineTo(this.canvas.width, row * this.cellSize);
+                    this.ctx.stroke();
+                }
+                for (let col = 0; col <= CONFIG.BOARD_COLS; col++) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(col * this.cellSize, 0);
+                    this.ctx.lineTo(col * this.cellSize, this.canvas.height);
+                    this.ctx.stroke();
+                }
+
+                this.defenders.forEach(d => d.draw(this.ctx, this.cellSize));
+                this.enemies.forEach(e => e.draw(this.ctx, this.cellSize));
+                this.projectiles.forEach(p => p.draw(this.ctx, this.cellSize));
+                this.particles.forEach(p => p.draw(this.ctx));
+
+                if (this.selectedDefender) {
+                    this.ctx.strokeStyle = 'rgba(0, 212, 255, 0.5)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.setLineDash([5, 5]);
+                    this.ctx.strokeRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.setLineDash([]);
+                }
+            }
+
+            gameLoop() {
+                const now = Date.now();
+                let deltaTime = (now - this.lastTime) / 1000;
+                if (deltaTime > 0.1) deltaTime = 0.1;
+                this.lastTime = now;
+
+                this.update(deltaTime);
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        class Defender {
+            constructor(row, col, type, game) {
+                this.row = row;
+                this.col = col;
+                this.type = type;
+                this.config = CONFIG.defenders[type];
+                this.health = this.config.health || 100;
+                this.maxHealth = this.health;
+                this.lastAttackTime = 0;
+                this.game = game;
+                this.isActive = true;
+            }
+
+            update(deltaTime, game) {
+                if (this.type === 'resource') {
+                    game.resources += 0.5 * deltaTime;
+                }
+
+                if (this.config.type === 'attacker' || this.config.type === 'aoe' || this.config.type === 'special') {
+                    this.lastAttackTime += deltaTime;
+                    if (this.lastAttackTime >= 1 / this.config.fireRate) {
+                        this.attack(game);
+                        this.lastAttackTime = 0;
+                    }
+                }
+            }
+
+            attack(game) {
+                const enemies = game.enemies.filter(e => this.inRange(e));
+                if (enemies.length === 0) return;
+
+                let targets = [enemies[0]];
+                if (this.config.type === 'aoe') {
+                    targets = enemies.slice(0, 2);
+                }
+
+                targets.forEach(enemy => {
+                    const projectile = new Projectile(
+                        this.col * this.game.cellSize + this.game.cellSize / 2,
+                        this.row * this.game.cellSize + this.game.cellSize / 2,
+                        enemy.x,
+                        enemy.y,
+                        this.config.damage || 20,
+                        this.type,
+                        this.game
+                    );
+                    game.projectiles.push(projectile);
+                });
+
+                game.playSound(600, 0.1);
+            }
+
+            inRange(enemy) {
+                const defenderX = (this.col + 0.5) * this.game.cellSize;
+                const defenderY = (this.row + 0.5) * this.game.cellSize;
+                const dx = enemy.x - defenderX;
+                const dy = enemy.y - defenderY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < (this.config.range || 3) * this.game.cellSize;
+            }
+
+            draw(ctx, cellSize) {
+                const x = this.col * cellSize + cellSize / 2;
+                const y = this.row * cellSize + cellSize / 2;
+
+                ctx.fillStyle = '#2d8f2d';
+                ctx.beginPath();
+                ctx.arc(x, y, cellSize * 0.35, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = `${cellSize * 0.5}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.config.icon, x, y);
+
+                if (this.config.health && this.health < this.maxHealth) {
+                    ctx.fillStyle = '#ff6b6b';
+                    ctx.fillRect(x - cellSize * 0.3, y + cellSize * 0.4, cellSize * 0.6, 4);
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(x - cellSize * 0.3, y + cellSize * 0.4, (this.health / this.maxHealth) * cellSize * 0.6, 4);
+                }
+            }
+        }
+
+        class Enemy {
+            constructor(x, y, type, game) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.config = CONFIG.enemies[type];
+                this.health = this.config.health;
+                this.maxHealth = this.health;
+                this.isActive = true;
+                this.game = game;
+                this.targetDefender = null;
+                this.lastAttackTime = 0;
+                this.slowFactor = 1;
+                this.slowEndTime = 0;
+                this.vx = -this.config.speed;
+            }
+
+            update(deltaTime, game) {
+                if (this.slowEndTime > 0) {
+                    this.slowEndTime -= deltaTime;
+                    if (this.slowEndTime <= 0) {
+                        this.slowFactor = 1;
+                    }
+                } else {
+                    this.slowFactor = 1;
+                }
+
+                this.targetDefender = this.findDefender(game);
+
+                if (this.targetDefender) {
+                    this.lastAttackTime += deltaTime;
+                    if (this.lastAttackTime >= 1 / this.config.attackRate) {
+                        this.attackDefender();
+                        this.lastAttackTime = 0;
+                    }
+                } else {
+                    this.x += this.vx * this.slowFactor * deltaTime;
+                }
+
+                if (this.x < 0) {
+                    game.lives -= 1;
+                    this.isActive = false;
+                    game.playSound(300, 0.3);
+                }
+
+                if (this.health <= 0) {
+                    this.isActive = false;
+                    game.resources += 10;
+                    game.playSound(700, 0.15);
+                    for (let i = 0; i < 5; i++) {
+                        game.particles.push(new Particle(this.x, this.y, game));
+                    }
+                }
+            }
+
+            findDefender(game) {
+                const row = Math.round(this.y / game.cellSize);
+                if (row < 0 || row >= CONFIG.BOARD_ROWS) return null;
+
+                let closest = null;
+                let closestDistance = Infinity;
+
+                game.defenders.forEach(def => {
+                    if (def.row === row) {
+                        const distance = def.col * game.cellSize - this.x;
+                        if (distance > -game.cellSize && distance < closestDistance) {
+                            closestDistance = distance;
+                            closest = def;
+                        }
+                    }
+                });
+
+                return closest;
+            }
+
+            attackDefender() {
+                if (this.targetDefender) {
+                    this.targetDefender.health -= this.config.damage;
+                    this.game.playSound(400, 0.1);
+                    if (this.targetDefender.health <= 0) {
+                        const index = this.game.defenders.indexOf(this.targetDefender);
+                        if (index > -1) {
+                            const row = this.targetDefender.row;
+                            const col = this.targetDefender.col;
+                            this.game.board[row][col] = null;
+                            this.game.defenders.splice(index, 1);
+                        }
+                        this.targetDefender = null;
+                    }
+                }
+            }
+
+            draw(ctx, cellSize) {
+                const x = this.x;
+                const y = this.y;
+
+                ctx.fillStyle = '#8b0000';
+                ctx.beginPath();
+                ctx.arc(x, y, cellSize * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = `${cellSize * 0.4}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🧟', x, y);
+
+                ctx.fillStyle = '#ff6b6b';
+                ctx.fillRect(x - cellSize * 0.25, y + cellSize * 0.35, cellSize * 0.5, 3);
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(x - cellSize * 0.25, y + cellSize * 0.35, (this.health / this.maxHealth) * cellSize * 0.5, 3);
+
+                if (this.slowFactor < 1) {
+                    ctx.strokeStyle = 'rgba(0, 200, 255, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, cellSize * 0.4, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, targetX, targetY, damage, type, game) {
+                this.x = x;
+                this.y = y;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.damage = damage;
+                this.type = type;
+                this.game = game;
+                this.isActive = true;
+                this.speed = 250;
+
+                const dx = targetX - x;
+                const dy = targetY - y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                this.vx = (dx / distance) * this.speed;
+                this.vy = (dy / distance) * this.speed;
+            }
+
+            update(deltaTime) {
+                this.x += this.vx * deltaTime;
+                this.y += this.vy * deltaTime;
+
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                if (dx * dx + dy * dy < 400) {
+                    this.isActive = false;
+                }
+            }
+
+            draw(ctx, cellSize) {
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, game) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 200;
+                this.vy = (Math.random() - 0.5) * 200;
+                this.life = 0.5;
+                this.maxLife = 0.5;
+                this.isActive = true;
+                this.game = game;
+            }
+
+            update(deltaTime) {
+                this.x += this.vx * deltaTime;
+                this.y += this.vy * deltaTime;
+                this.life -= deltaTime;
+                if (this.life <= 0) this.isActive = false;
+            }
+
+            draw(ctx) {
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        const game = new Game();
+    </script>
+</body>
+</html>
